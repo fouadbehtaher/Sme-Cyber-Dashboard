@@ -1,76 +1,58 @@
 const mongoose = require('mongoose');
 
 const incidentSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  description: {
-    type: String,
-    required: true
-  },
-  severity: {
-    type: String,
-    enum: ['low', 'medium', 'high', 'critical'],
-    default: 'medium'
-  },
-  status: {
-    type: String,
-    enum: ['detected', 'investigating', 'contained', 'resolved'],
-    default: 'detected'
-  },
-  type: {
-    type: String,
-    required: true,
-    enum: [
-      'malware', 
-      'phishing', 
-      'ddos', 
-      'data_breach',
-      'unauthorized_access',
-      'vulnerability_exploit'
-    ]
-  },
-  affected_assets: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Asset'
-  }],
-  source_ip: String,
-  destination_ip: String,
-  detected_by: {
-    type: String,
-    required: true
-  },
-  response_actions: [{
-    action: String,
-    timestamp: {
-      type: Date,
-      default: Date.now
+    _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
+    incident_id: { type: String, unique: true, index: true },
+    tenant_id: { type: String, required: true, index: true },
+    title: { type: String, required: true },
+    description: { type: String },
+    
+    severity: { 
+        type: String, 
+        enum: ['low', 'medium', 'high', 'critical'],
+        index: true 
     },
     status: {
-      type: String,
-      enum: ['pending', 'completed', 'failed'],
-      default: 'pending'
+        type: String,
+        enum: ['new', 'investigating', 'contained', 'resolved', 'closed'],
+        default: 'new',
+        index: true
+    },
+    
+    mitre_attack: {
+        tactics: [{
+            id: { type: String },
+            name: { type: String },
+            techniques: [{
+                id: { type: String },
+                name: { type: String }
+            }]
+        }]
+    },
+    
+    affected_assets: [{ type: String }],
+    
+    business_impact: {
+        financial_impact: { type: Number },
+        downtime_minutes: { type: Number },
+        affected_customers: { type: Number },
+        data_records_compromised: { type: Number }
+    },
+    
+    // علاقات بالأنظمة الخارجية
+    external_references: {
+        servicenow_case: { type: String },
+        jira_ticket: { type: String }
     }
-  }],
-  evidence: [{
-    type: String // URLs to evidence files
-  }],
-  created_at: {
-    type: Date,
-    default: Date.now
-  },
-  updated_at: {
-    type: Date,
-    default: Date.now
-  }
+
+}, { 
+    timestamps: true,
+    autoIndex: true 
 });
 
-// Update timestamp on save
-incidentSchema.pre('save', function(next) {
-  this.updated_at = Date.now();
-  next();
-});
+// Create indexes
+incidentSchema.index({ tenant_id: 1, status: 1, severity: 1 });
+incidentSchema.index({ tenant_id: 1, created_at: -1 });
+incidentSchema.index({ 'mitre_attack.tactics.id': 1 });
 
 module.exports = mongoose.model('Incident', incidentSchema);
