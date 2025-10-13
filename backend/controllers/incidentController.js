@@ -1,110 +1,137 @@
 const Incident = require('../models/Incident');
+const Asset = require('../models/Asset');
+const { sendAlert } = require('../services/notificationService');
 
-// Get all incidents
 exports.getAllIncidents = async (req, res) => {
   try {
-    const incidents = await Incident.find().populate('affected_assets').sort({ created_at: -1 });
-    res.json(incidents);
+    const { page = 1, limit = 10, severity, status } = req.query;
+    
+    const filter = {};
+    if (severity) filter.severity = severity;
+    if (status) filter.status = status;
+    
+    const incidents = await Incident.find(filter)
+      .populate('affected_assets')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+    
+    const total = await Incident.countDocuments(filter);
+    
+    res.json({
+      incidents,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// Get incident by ID
 exports.getIncidentById = async (req, res) => {
   try {
-    const incident = await Incident.findById(req.params.id).populate('affected_assets');
+    const incident = await Incident.findById(req.params.id)
+      .populate('affected_assets')
+      .populate('response_actions');
+    
     if (!incident) {
       return res.status(404).json({ message: 'Incident not found' });
     }
+    
     res.json(incident);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// Create a new incident
 exports.createIncident = async (req, res) => {
-  const incident = new Incident({
-    title: req.body.title,
-    description: req.body.description,
-    severity: req.body.severity,
-    type: req.body.type,
-    affected_assets: req.body.affected_assets,
-    source_ip: req.body.source_ip,
-    destination_ip: req.body.destination_ip,
-    detected_by: req.body.detected_by
-  });
-
   try {
+    const incident = new Incident({
+      ...req.body,
+      detected_by: 'manual',
+      status: 'detected'
+    });
+    
     const newIncident = await incident.save();
+    
+    // Send real-time alert
+    req.app.get('io').emit('new_incident', newIncident);
+    
+    // Send notifications
+    await sendAlert(newIncident);
+    
     res.status(201).json(newIncident);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
 
-// Update an incident
-exports.updateIncident = async (req, res) => {
+exports.updateIncidentStatus = async (req, res) => {
   try {
-    const incident = await Incident.findById(req.params.id);
+    const { status, response_actions } = req.body;
+    
+    const incident = await Incident.findByIdAndUpdate(
+      req.params.id,
+      { 
+        status,
+        response_actions: response_actions || [],
+        updated_at: Date.now()
+      },
+      { new: true }
+    ).populate('affected_assets');
+    
     if (!incident) {
       return res.status(404).json({ message: 'Incident not found' });
     }
-
-    // Update fields
-    if (req.body.title != null) incident.title = req.body.title;
-    if (req.body.description != null) incident.description = req.body.description;
-    if (req.body.severity != null) incident.severity = req.body.severity;
-    if (req.body.status != null) incident.status = req.body.status;
-    if (req.body.type != null) incident.type = req.body.type;
-    if (req.body.affected_assets != null) incident.affected_assets = req.body.affected_assets;
-    if (req.body.source_ip != null) incident.source_ip = req.body.source_ip;
-    if (req.body.destination_ip != null) incident.destination_ip = req.body.destination_ip;
-    if (req.body.detected_by != null) incident.detected_by = req.body.detected_by;
-    if (req.body.response_actions != null) incident.response_actions = req.body.response_actions;
-
-    const updatedIncident = await incident.save();
-    res.json(updatedIncident);
+    
+    // Emit status update
+    req.app.get('io').emit('incident_updated', incident);
+    
+    res.json(incident);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
 
-// Delete an incident
-exports.deleteIncident = async (req, res) => {
+exports.getIncidentStats = async (req, res) => {
   try {
-    const incident = await Incident.findById(req.params.id);
-    if (!incident) {
-      return res.status(404).json({ message: 'Incident not found' });
-    }
-
-    await Incident.deleteOne({ _id: req.params.id });
-    res.json({ message: 'Incident deleted' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// Get active incidents
-exports.getActiveIncidents = async (req, res) => {
-  try {
-    const incidents = await Incident.find({
-      status: { $ne: 'resolved' }
-    }).populate('affected_assets').sort({ created_at: -1 });
-    res.json(incidents);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// Get incidents by severity
-exports.getIncidentsBySeverity = async (req, res) => {
-  try {
-    const incidents = await Incident.find({
-      severity: req.params.level
-    }).populate('affected_assets').sort({ created_at: -1 });
-    res.json(incidents);
+    const stats = await Incident.aggregate([
+      {
+        $group: {
+          _id: '$severity',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    const statusStats = await Incident.aggregate([
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    const timeline = await Incident.aggregate([
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$created_at" }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } },
+      { $limit: 30 }
+    ]);
+    
+    res.json({
+      severity: stats,
+      status: statusStats,
+      timeline
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
