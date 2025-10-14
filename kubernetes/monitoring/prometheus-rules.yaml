@@ -1,0 +1,37 @@
+# kubernetes/monitoring/prometheus-rules.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: soc-alerts
+  namespace: monitoring
+spec:
+  groups:
+  - name: soc-platform
+    rules:
+    - alert: HighEventProcessingLag
+      expr: kafka_consumer_lag > 10000
+      for: 5m
+      labels:
+        severity: critical
+        tier: backend
+      annotations:
+        summary: "High event processing lag detected"
+        description: "Event processing lag is {{ $value }} messages for tenant {{ $labels.tenant }}"
+        
+    - alert: SOCEngineDown
+      expr: up{job="soc-event-processor"} == 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "SOC event processor is down"
+        description: "SOC event processor pod {{ $labels.pod }} is not responding"
+        
+    - alert: HighErrorRate
+      expr: rate(event_processing_errors_total[5m]) > 0.1
+      for: 3m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High event processing error rate"
+        description: "Error rate is {{ $value }} errors per second"
