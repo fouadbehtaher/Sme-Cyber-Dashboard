@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import '../dashboard/dashboard.css';
 import {
   Table,
   TableBody,
@@ -80,9 +81,9 @@ const IncidentList = ({ onViewIncident, onEditIncident, refreshTrigger }) => {
   }
 
   return (
-    <Box>
+    <div className="card">
       <Typography variant="h5" gutterBottom>
-        Security Incidents
+        قائمة الحوادث الأمنية
       </Typography>
 
       {error && (
@@ -95,12 +96,12 @@ const IncidentList = ({ onViewIncident, onEditIncident, refreshTrigger }) => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Title</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Severity</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Created</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell>العنوان</TableCell>
+              <TableCell>النوع</TableCell>
+              <TableCell>الخطورة</TableCell>
+              <TableCell>الحالة</TableCell>
+              <TableCell>تاريخ الإنشاء</TableCell>
+              <TableCell>إجراءات</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -156,10 +157,10 @@ const IncidentList = ({ onViewIncident, onEditIncident, refreshTrigger }) => {
 
       {incidents.length === 0 && !loading && (
         <Alert severity="info" sx={{ mt: 2 }}>
-          No incidents found.
+          لا توجد حوادث.
         </Alert>
       )}
-    </Box>
+    </div>
   );
 };
 

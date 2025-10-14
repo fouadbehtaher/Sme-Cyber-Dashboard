@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './dashboard.css';
 import {
   Grid,
   Paper,
@@ -51,48 +52,40 @@ const MainDashboard = () => {
   };
 
   return (
-    <Box sx={{ flexGrow: 1, p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        Cyber Exposure Dashboard
-      </Typography>
-      
+    <div className="dashboard-container">
+      <nav className="navbar">
+        <div className="navbar-logo">لوحة التحكم السيبرانية</div>
+        <div className="navbar-links">
+          <a href="/" className="navbar-link">الرئيسية</a>
+          <a href="/incidents" className="navbar-link">الحوادث</a>
+          <a href="/assets" className="navbar-link">الأصول</a>
+          <a href="/vulnerabilities" className="navbar-link">الثغرات</a>
+        </div>
+      </nav>
+      <h2 className="dashboard-title">لوحة معلومات التعرض السيبراني</h2>
       <Grid container spacing={3}>
         {/* Security Score Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Typography color="textSecondary" gutterBottom>
-                Security Score
-              </Typography>
-              <Typography variant="h4" component="div" 
-                sx={{ color: dashboardData.securityScore > 70 ? 'green' : 
-                         dashboardData.securityScore > 40 ? 'orange' : 'red' }}>
-                {dashboardData.securityScore}
-              </Typography>
-            </CardContent>
-          </Card>
+          <div className="card">
+            <div style={{ color: '#888', marginBottom: '8px' }}>معدل الأمان</div>
+            <div style={{ fontSize: '2rem', color: dashboardData.securityScore > 70 ? 'green' : dashboardData.securityScore > 40 ? 'orange' : 'red' }}>
+              {dashboardData.securityScore}
+            </div>
+          </div>
         </Grid>
 
         {/* Active Incidents Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Typography color="textSecondary" gutterBottom>
-                Active Incidents
-              </Typography>
-              <Typography variant="h4" component="div">
-                {dashboardData.activeIncidents}
-              </Typography>
-            </CardContent>
-          </Card>
+          <div className="card">
+            <div style={{ color: '#888', marginBottom: '8px' }}>الحوادث النشطة</div>
+            <div style={{ fontSize: '2rem' }}>{dashboardData.activeIncidents}</div>
+          </div>
         </Grid>
 
         {/* Threat Timeline Chart */}
         <Grid item xs={12}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Threat Timeline
-            </Typography>
+          <div className="card">
+            <div style={{ color: '#888', marginBottom: '8px' }}>تسلسل التهديدات</div>
             <LineChart width={800} height={300} data={dashboardData.threatTimeline}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
@@ -102,10 +95,10 @@ const MainDashboard = () => {
               <Line type="monotone" dataKey="threats" stroke="#8884d8" />
               <Line type="monotone" dataKey="incidents" stroke="#82ca9d" />
             </LineChart>
-          </Paper>
+          </div>
         </Grid>
       </Grid>
-    </Box>
+    </div>
   );
 };
 
