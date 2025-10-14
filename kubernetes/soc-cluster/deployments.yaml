@@ -1,1 +1,112 @@
-
+# kubernetes/soc-cluster/deployments.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: soc-event-processor
+  namespace: soc-production
+  labels:
+    app: soc-event-processor
+    tier: backend
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: soc-event-processor
+  template:
+    metadata:
+      labels:
+        app: soc-event-processor
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: event-processor
+        image: registry.example.com/soc-platform:2.1.0
+        ports:
+        - containerPort: 8000
+        env:
+        - name: KAFKA_BROKERS
+          value: "kafka-broker1:9092,kafka-broker2:9092,kafka-broker3:9092"
+        - name: ELASTICSEARCH_HOSTS
+          value: "https://es-node1:9200,https://es-node2:9200,https://es-node3:9200"
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: soc-secrets
+              key: mongodb-uri
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/soc/config
+        - name: logs-volume
+          mountPath: /var/log/soc
+      volumes:
+      - name: config-volume
+        configMap:
+          name: soc-config
+      - name: logs-volume
+        persistentVolumeClaim:
+          claimName: soc-logs-pvc
+      nodeSelector:
+        node-type: high-performance
+      tolerations:
+      - key: "soc-critical"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: soc-event-processor-hpa
+  namespace: soc-production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: soc-event-processor
+  minReplicas: 5
+  maxReplicas: 50
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Pods
+    pods:
+      metric:
+        name: kafka_lag
+      target:
+        type: AverageValue
+        averageValue: "1000"
