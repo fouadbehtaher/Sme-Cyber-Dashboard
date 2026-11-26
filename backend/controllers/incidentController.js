@@ -136,3 +136,26 @@ exports.getIncidentStats = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// Read-only handlers used by the frontend (frontend/src/services/incidentService.js).
+exports.getActiveIncidents = async (req, res) => {
+  try {
+    const incidents = await Incident.find({ status: { $nin: ['resolved', 'closed'] } })
+      .populate('affected_assets')
+      .sort({ createdAt: -1 });
+    res.json(incidents);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getIncidentsBySeverity = async (req, res) => {
+  try {
+    const incidents = await Incident.find({ severity: req.params.level })
+      .populate('affected_assets')
+      .sort({ createdAt: -1 });
+    res.json(incidents);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
