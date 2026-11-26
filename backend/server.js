@@ -2,6 +2,8 @@ const app = require('./app');
 const http = require('http');
 const socketIo = require('socket.io');
 
+app.connectDb().catch((err) => console.error('MongoDB connection failed:', err.message));
+
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
