@@ -2,25 +2,18 @@ const express = require('express');
 const router = express.Router();
 const incidentController = require('../controllers/incidentController');
 
-// Get all incidents
-router.get('/', incidentController.getAllIncidents);
-
-// Get incident by ID
-router.get('/:id', incidentController.getIncidentById);
-
-// Create a new incident
-router.post('/', incidentController.createIncident);
-
-// Update an incident
-router.put('/:id', incidentController.updateIncident);
-
-// Delete an incident
-router.delete('/:id', incidentController.deleteIncident);
-
-// Get active incidents (status not resolved)
+// Fixed-path routes first, so ':id' does not capture them.
+router.get('/stats', incidentController.getIncidentStats);
 router.get('/status/active', incidentController.getActiveIncidents);
-
-// Get incidents by severity
 router.get('/severity/:level', incidentController.getIncidentsBySeverity);
+
+router.get('/', incidentController.getAllIncidents);
+router.get('/:id', incidentController.getIncidentById);
+router.post('/', incidentController.createIncident);
+router.put('/:id/status', incidentController.updateIncidentStatus);
+
+// Not mounted: PUT /:id and DELETE /:id. The frontend calls them
+// (incidentService.js) but the controller never had handlers, and they are
+// destructive without authentication. Decide the auth policy first.
 
 module.exports = router;
