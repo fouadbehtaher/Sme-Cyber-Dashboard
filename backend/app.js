@@ -4,9 +4,6 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
-// استيراد routes الجديدة
-const advancedQueriesRoutes = require('./routes/advancedQueries');
-
 const app = express();
 
 // Middleware للأمان
@@ -21,18 +18,19 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Routes
-app.use('/api/advanced-queries', advancedQueriesRoutes);
+// Health check (does not touch the database)
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// بقية routes...
+// Routes that are implemented and have their dependencies in the repo.
+// NOT mounted yet, because the files they need are empty or missing:
+//   /api/auth             routes/auth.js, models/User.js (auth policy not decided)
+//   /api/assets           routes/assets.js, controllers/assetController.js are empty
+//   /api/advanced-queries needs middleware/rbac.js (missing) and SecurityEvent/Asset models
+//   /api/vulnerabilities  needs models/Vulnerability.js (empty)
+// The incident routes are mounted without authentication, as written. Do not expose this server beyond localhost.
 app.use('/api/incidents', require('./routes/incidents'));
-app.use('/api/assets', require('./routes/assets'));
-app.use('/api/auth', require('./routes/auth'));
 
-// توصيل MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/soc_platform', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-});
+// MongoDB connection is explicit, so the app can be loaded (and tested) without a database.
+app.connectDb = () => mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/soc_platform');
 
 module.exports = app;
